@@ -35,6 +35,7 @@ def main():
     parser.add_argument("--overlay_height", type=int, default=900, help="Portrait height in template (default: 900)")
     parser.add_argument("--no_logo", action="store_true", help="Disable rotating logo in top-left")
     parser.add_argument("--logo_period", type=float, default=10.0, help="Rotation period for logo in seconds (default: 10.0)")
+    parser.add_argument("--tv_range", action="store_true", help="Encode conventional limited 16-235 video range instead of passing the template's full 0-255 tone through unchanged")
     parser.add_argument("--rebuild_template", action="store_true", help="Force rebuild background template")
     args = parser.parse_args()
 
@@ -146,7 +147,8 @@ def main():
         logo_pos_x=45,
         logo_pos_y=45,
         rotate_period_sec=args.logo_period,
-        ffmpeg_bin=ffmpeg_bin
+        ffmpeg_bin=ffmpeg_bin,
+        full_range=not args.tv_range
     )
     t_cost = time.time() - t0
 

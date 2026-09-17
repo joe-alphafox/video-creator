@@ -45,12 +45,22 @@ def render_slides_concat_video(
     logo_pos_y: int = 40,
     rotate_period_sec: float = 10.0,
     ffmpeg_bin: str = None,
-    fps: int = 30
+    fps: int = 30,
+    full_range: bool = True
 ) -> str:
     """
     Renders video with accurate BT.709 colorspace, VUI tags, and an optional rotating circular avatar logo in top-left.
+
+    full_range=True (default) keeps the slides' 0-255 tone untouched, so the template's colors are
+    reproduced exactly. The conventional limited range (16-235) squeezes the tone by ~8% and relies on
+    every viewer honoring the range metadata; pass full_range=False for that legacy behavior.
     """
     bin_path = ffmpeg_bin or find_binary("ffmpeg")
+
+    # Range handling: the slide PNGs are full-range sRGB, so convert with a matching range instead of
+    # compressing into 16-235, and tag the stream with the same range so players do not re-expand it.
+    out_range = "pc" if full_range else "tv"
+    range_flag = 1 if full_range else 0
     os.makedirs(os.path.dirname(os.path.abspath(output_mp4_path)), exist_ok=True)
     
     # 1. Generate ffconcat script
@@ -90,23 +100,23 @@ def render_slides_concat_video(
         # Input 0: slides, Input 1: logo, Input 2: audio
         # Using fps={fps} on [0:v] ensures a continuous 30fps stream drives the rotation smoothly every frame
         filter_str = (
-            f"[0:v]fps={fps},scale=in_range=pc:out_range=tv:in_color_matrix=bt709:out_color_matrix=bt709,format=yuv420p[base];"
+            f"[0:v]fps={fps},scale=in_range=pc:out_range={out_range}:in_color_matrix=bt709:out_color_matrix=bt709,format=yuv420p[base];"
             f"[1:v]format=rgba,rotate=2*PI*t/{rotate_period_sec}:c=none:ow=iw:oh=ih[spin];"
             f"[base][spin]overlay={logo_pos_x}:{logo_pos_y}:shortest=1[outv]"
         )
         cmd.extend(["-filter_complex", filter_str, "-map", "[outv]", "-map", "2:a"])
     else:
-        vf_filter = f"fps={fps},scale=in_range=pc:out_range=tv:in_color_matrix=bt709:out_color_matrix=bt709,format=yuv420p"
+        vf_filter = f"fps={fps},scale=in_range=pc:out_range={out_range}:in_color_matrix=bt709:out_color_matrix=bt709,format=yuv420p"
         cmd.extend(["-vf", vf_filter, "-map", "0:v", "-map", "1:a"])
         
     cmd.extend([
         "-r", str(fps),
-        "-color_range", "tv",
+        "-color_range", out_range,
         "-colorspace", "bt709",
         "-color_primaries", "bt709",
         "-color_trc", "bt709",
         "-movflags", "+faststart",
-        "-bsf:v", "h264_metadata=colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1:video_full_range_flag=0"
+        "-bsf:v", f"h264_metadata=colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1:video_full_range_flag={range_flag}"
     ])
     
     if use_videotoolbox:
@@ -123,7 +133,7 @@ def render_slides_concat_video(
     
     print(f"[VideoRenderer] Rendering video -> {output_mp4_path}")
     print(f"[VideoRenderer] Encoder: {'h264_videotoolbox (Hardware)' if use_videotoolbox else 'libx264'}")
-    print(f"[VideoRenderer] Color Profile: BT.709 Standard (VUI calibrated)")
+    print(f"[VideoRenderer] Color Profile: BT.709 Standard (VUI calibrated, {'full range passthrough' if full_range else 'limited 16-235 range'})")
     if has_spinning_logo:
         print(f"[VideoRenderer] Rotating Logo: Enabled (Period: {rotate_period_sec}s, Position: {logo_pos_x},{logo_pos_y})")
     if target_duration:
