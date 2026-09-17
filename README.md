@@ -58,9 +58,22 @@ python3 make_video.py --duration 30
 python3 make_video.py --output output_full.mp4
 ```
 
-### 3. 参数配置
+### 3. 生成视频封面海报（黑底哲理海报风格）
+```bash
+# 默认生成封面 cover.png
+python3 make_cover.py
+
+# 自定义标题、Markdown 强调与作者署名
+python3 make_cover.py --title "“**翻身**不需要**运气**”" --author "--查理芒格" --output cover.png
+
+# 保持人物原彩色（默认是高反差黑白）
+python3 make_cover.py --color --output cover_color.png
+```
+
+### 4. 参数配置
 - `--duration <秒数>`: 指定生成的视频时长（不填则为整段音频全长）。
 - `--no_logo`: 关闭左上角旋转 Logo。
 - `--logo_period <秒数>`: 调整 Logo 旋转一圈所需的时间（默认 10.0 秒，即每秒匀速旋转 36 度）。
 - `--tv_range`: 改用传统有限范围（16-235）编码；默认全范围直通，保证视频色调与模板图完全一致。
+- `--cover`: 在生成视频的同时自动生成对应视频封面海报。
 - `--rebuild_template`: 强制重新生成模板图和旋转 Logo。

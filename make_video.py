@@ -14,13 +14,33 @@ from tools.subtitle_generator import (
     generate_srt_subtitles
 )
 from tools.slide_renderer import render_slides
+from tools.cover_builder import build_cover
 from tools.video_renderer import (
     get_audio_duration,
     render_slides_concat_video,
     find_binary
 )
 
+def preprocess_args(argv):
+    known_flags = {"--help", "-h", "--bg", "--overlay", "--audio", "--text", "--duration", "--output", "--font_size", "--max_chars", "--overlay_height", "--no_logo", "--logo_period", "--tv_range", "--cover", "--cover_title", "--cover_author", "--cover_output", "--cover_color", "--rebuild_template"}
+    new_argv = []
+    skip = False
+    for i in range(len(argv)):
+        if skip:
+            skip = False
+            continue
+        curr = argv[i]
+        if curr in {"--cover_author", "--cover_title"} and i + 1 < len(argv):
+            nxt = argv[i+1]
+            if nxt.startswith("-") and nxt not in known_flags:
+                new_argv.append(f"{curr}={nxt}")
+                skip = True
+                continue
+        new_argv.append(curr)
+    return new_argv
+
 def main():
+    sys.argv = preprocess_args(sys.argv)
     parser = argparse.ArgumentParser(
         description="Video Creator: Generates talking-head presentation video with dynamic subtitles."
     )
@@ -36,6 +56,11 @@ def main():
     parser.add_argument("--no_logo", action="store_true", help="Disable rotating logo in top-left")
     parser.add_argument("--logo_period", type=float, default=10.0, help="Rotation period for logo in seconds (default: 10.0)")
     parser.add_argument("--tv_range", action="store_true", help="Encode conventional limited 16-235 video range instead of passing the template's full 0-255 tone through unchanged")
+    parser.add_argument("--cover", action="store_true", help="Generate video cover thumbnail image")
+    parser.add_argument("--cover_title", default="“**翻身**\n不需要**运气**”", help="Cover title (supports markdown **bold** and \\n)")
+    parser.add_argument("--cover_author", default="--查理芒格", help="Cover author attribution")
+    parser.add_argument("--cover_output", default="cover.png", help="Cover output path (default: cover.png)")
+    parser.add_argument("--cover_color", action="store_true", help="Keep cover portrait in original color")
     parser.add_argument("--rebuild_template", action="store_true", help="Force rebuild background template")
     args = parser.parse_args()
 
@@ -158,6 +183,26 @@ def main():
     print(f"  Subtitles SRT: {srt_path}")
     print(f"  Render Time  : {t_cost:.2f}s (Speed: {target_duration/t_cost:.2f}x real-time)")
     print("=" * 65)
+
+    # Step 6 (Optional): Cover thumbnail generation
+    if args.cover:
+        print("\n>>> Step 6: Generating Video Cover Thumbnail...")
+        cover_title_input = args.cover_title.replace("\\n", "\n")
+        if "\n" not in cover_title_input:
+            import re
+            b_matches = list(re.finditer(r"\*\*.*?\*\*", cover_title_input))
+            if len(b_matches) >= 2:
+                sp = b_matches[0].end()
+                cover_title_input = cover_title_input[:sp] + "\n" + cover_title_input[sp:].lstrip()
+
+        cover_path = build_cover(
+            title=cover_title_input,
+            author=args.cover_author,
+            portrait_path=args.overlay,
+            output_path=args.cover_output,
+            grayscale_portrait=not args.cover_color
+        )
+        print(f"  Cover Image  : {cover_path}")
 
 if __name__ == "__main__":
     main()
