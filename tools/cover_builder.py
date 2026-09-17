@@ -14,6 +14,56 @@ DEFAULT_FONT_CANDIDATES = [
 COLOR_WHITE = (255, 255, 255)
 COLOR_YELLOW = (252, 226, 26)  # Bright poster yellow matching reference image
 
+DEFAULT_ASPECT = "4:3"
+REFERENCE_WIDTH = 1792
+REFERENCE_HEIGHT = 1008
+
+def parse_aspect_ratio(aspect: str) -> Tuple[int, int]:
+    """
+    Parses an aspect string like "4:3", "16:9", "16/9", "1:1" into (w, h).
+    """
+    if not aspect:
+        raise ValueError("Aspect ratio string is empty")
+    normalized = aspect.strip().replace("/", ":")
+    if ":" not in normalized:
+        raise ValueError(f'Invalid aspect ratio "{aspect}", expected format like "4:3" or "16:9"')
+    w_str, h_str = normalized.split(":", 1)
+    try:
+        w = float(w_str.strip())
+        h = float(h_str.strip())
+    except ValueError:
+        raise ValueError(f'Invalid aspect ratio "{aspect}", expected format like "4:3" or "16:9"')
+    if w <= 0 or h <= 0:
+        raise ValueError(f'Invalid aspect ratio "{aspect}", width and height must be positive')
+    return w, h
+
+def resolve_cover_size(aspect: str = DEFAULT_ASPECT) -> Tuple[int, int]:
+    """
+    Resolves canvas size from an aspect string.
+    Keeps legacy sizes for common presets so existing outputs stay stable.
+    """
+    w_ratio, h_ratio = parse_aspect_ratio(aspect)
+    # Normalize for preset matching (avoid float noise)
+    key = f"{w_ratio:g}:{h_ratio:g}"
+    if key == "16:9":
+        return (REFERENCE_WIDTH, REFERENCE_HEIGHT)
+    if key == "4:3":
+        return (1600, 1200)
+    if key == "1:1":
+        return (1200, 1200)
+    if key == "3:4":
+        return (1200, 1600)
+    if key == "9:16":
+        return (1080, 1920)
+    # Generic aspect: fix long edge at 1600 and derive the other side
+    if w_ratio >= h_ratio:
+        width = 1600
+        height = int(round(width * h_ratio / w_ratio))
+    else:
+        height = 1600
+        width = int(round(height * w_ratio / h_ratio))
+    return (width, height)
+
 def get_best_font(custom_font_path: Optional[str] = None):
     if custom_font_path and os.path.exists(custom_font_path):
         return custom_font_path, 0
@@ -92,23 +142,50 @@ def build_cover(
     author: str = "--查理芒格",
     portrait_path: str = "munger-nobg.png",
     output_path: str = "cover.png",
-    width: int = 1792,
-    height: int = 1008,
+    width: int = None,
+    height: int = None,
+    aspect: str = DEFAULT_ASPECT,
     portrait_width_ratio: float = 0.40,
     grayscale_portrait: bool = True,
-    font_normal_size: int = 115,
-    font_large_size: int = 165,
-    author_size: int = 65,
-    left_margin: int = 180,
-    line_spacing: int = 45,
-    author_gap: int = 60,
+    font_normal_size: int = None,
+    font_large_size: int = None,
+    author_size: int = None,
+    left_margin: int = None,
+    line_spacing: int = None,
+    author_gap: int = None,
     font_path: Optional[str] = None
 ) -> str:
     """
     Renders high-production video cover based on minimalist dark poster aesthetic.
+
+    Canvas size defaults to 4:3 via `aspect`. Explicit width/height still win
+    when both are provided, so older calls keep working. Typography and layout
+    scale from the 1792x1008 reference design.
     """
+    if width is not None and height is not None:
+        canvas_w, canvas_h = int(width), int(height)
+    elif width is not None or height is not None:
+        raise ValueError("width and height must be provided together; use --aspect for ratio presets")
+    else:
+        canvas_w, canvas_h = resolve_cover_size(aspect)
+    scale = min(canvas_w / REFERENCE_WIDTH, canvas_h / REFERENCE_HEIGHT)
+
+    if font_normal_size is None:
+        font_normal_size = max(24, int(round(115 * scale)))
+    if font_large_size is None:
+        font_large_size = max(36, int(round(165 * scale)))
+    if author_size is None:
+        author_size = max(18, int(round(65 * scale)))
+    if left_margin is None:
+        left_margin = max(28, int(round(180 * scale)))
+    if line_spacing is None:
+        line_spacing = max(12, int(round(45 * scale)))
+    if author_gap is None:
+        author_gap = max(16, int(round(60 * scale)))
+
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-    canvas = Image.new("RGBA", (width, height), (0, 0, 0, 255))
+    canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 255))
+    width, height = canvas_w, canvas_h
 
     # 1. Place portrait on right side
     target_pw = int(width * portrait_width_ratio)
@@ -117,7 +194,12 @@ def build_cover(
         target_width=target_pw,
         grayscale=grayscale_portrait
     )
-    px = width - portrait_img.width + 10
+    # If the portrait is taller than the canvas (common on narrow 9:16),
+    # crop vertically from the top so bottom alignment never goes negative.
+    if portrait_img.height > height:
+        top = portrait_img.height - height
+        portrait_img = portrait_img.crop((0, top, portrait_img.width, portrait_img.height))
+    px = width - portrait_img.width + max(0, int(round(10 * scale)))
     py = height - portrait_img.height
     canvas.alpha_composite(portrait_img, (px, py))
 
@@ -211,7 +293,7 @@ def build_cover(
 
 if __name__ == "__main__":
     import sys
-    known_flags = {"--help", "-h", "--title", "--author", "--portrait", "--output", "--color", "--single_line"}
+    known_flags = {"--help", "-h", "--title", "--author", "--portrait", "--output", "--color", "--single_line", "--aspect", "--width", "--height"}
     new_argv = []
     skip = False
     for i in range(len(sys.argv)):
@@ -235,6 +317,9 @@ if __name__ == "__main__":
     parser.add_argument("--output", default="cover.png", help="Output path for cover image")
     parser.add_argument("--color", action="store_true", help="Keep portrait original color (default is high-contrast B&W)")
     parser.add_argument("--single_line", action="store_true", help="Force title on single line")
+    parser.add_argument("--aspect", default=DEFAULT_ASPECT, help='Canvas aspect ratio like "4:3", "16:9", "1:1", "3:4" (default: "4:3")')
+    parser.add_argument("--width", type=int, default=None, help="Explicit canvas width (must be used together with --height)")
+    parser.add_argument("--height", type=int, default=None, help="Explicit canvas height (must be used together with --width)")
     args = parser.parse_args()
 
     title_input = args.title
@@ -246,5 +331,8 @@ if __name__ == "__main__":
         author=args.author,
         portrait_path=args.portrait,
         output_path=args.output,
+        width=args.width,
+        height=args.height,
+        aspect=args.aspect,
         grayscale_portrait=not args.color
     )

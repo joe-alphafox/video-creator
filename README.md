@@ -58,10 +58,14 @@ python3 make_video.py --duration 30
 python3 make_video.py --output output_full.mp4
 ```
 
-### 3. 生成视频封面海报（黑底哲理海报风格）
+### 3. 生成视频封面海报（黑底哲理海报风格，默认 4:3）
 ```bash
-# 默认生成封面 cover.png
+# 默认生成 4:3 封面 cover.png（1600x1200）
 python3 make_cover.py
+
+# 切换回 16:9，或使用其他比例
+python3 make_cover.py --aspect 16:9 --output cover_16x9.png
+python3 make_cover.py --aspect 1:1 --output cover_square.png
 
 # 自定义标题、Markdown 强调与作者署名
 python3 make_cover.py --title "“**翻身**不需要**运气**”" --author "--查理芒格" --output cover.png
@@ -76,4 +80,6 @@ python3 make_cover.py --color --output cover_color.png
 - `--logo_period <秒数>`: 调整 Logo 旋转一圈所需的时间（默认 10.0 秒，即每秒匀速旋转 36 度）。
 - `--tv_range`: 改用传统有限范围（16-235）编码；默认全范围直通，保证视频色调与模板图完全一致。
 - `--cover`: 在生成视频的同时自动生成对应视频封面海报。
+- `--cover_aspect <比例>`: 封面画布比例，如 `4:3`、`16:9`、`1:1`（默认 `4:3`）。
+- `--aspect <比例>`: `make_cover.py` 的封面画布比例（默认 `4:3`）；也可用 `--width` + `--height` 指定精确像素。
 - `--rebuild_template`: 强制重新生成模板图和旋转 Logo。

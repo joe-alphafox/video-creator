@@ -8,7 +8,7 @@ def preprocess_args(argv):
     Handles option values starting with dashes (e.g. --author --查理芒格)
     so argparse does not misinterpret them as unknown flags.
     """
-    known_flags = {"--help", "-h", "--title", "--author", "--portrait", "--output", "--color", "--single_line", "--font_normal", "--font_large", "--author_size", "--portrait_ratio"}
+    known_flags = {"--help", "-h", "--title", "--author", "--portrait", "--output", "--color", "--single_line", "--font_normal", "--font_large", "--author_size", "--portrait_ratio", "--aspect", "--width", "--height"}
     new_argv = []
     skip = False
     for i in range(len(argv)):
@@ -40,6 +40,9 @@ def main():
     parser.add_argument("--font_large", type=int, default=165, help="Highlighted yellow bold text font size (default: 165)")
     parser.add_argument("--author_size", type=int, default=65, help="Author text font size (default: 65)")
     parser.add_argument("--portrait_ratio", type=float, default=0.40, help="Portrait width ratio of canvas (default: 0.40)")
+    parser.add_argument("--aspect", default="4:3", help='Canvas aspect ratio like "4:3", "16:9", "1:1", "3:4" (default: "4:3")')
+    parser.add_argument("--width", type=int, default=None, help="Explicit canvas width (must be used together with --height)")
+    parser.add_argument("--height", type=int, default=None, help="Explicit canvas height (must be used together with --width)")
     args = parser.parse_args()
 
     title_input = args.title
@@ -62,6 +65,9 @@ def main():
         author=args.author,
         portrait_path=args.portrait,
         output_path=args.output,
+        width=args.width,
+        height=args.height,
+        aspect=args.aspect,
         grayscale_portrait=not args.color,
         font_normal_size=args.font_normal,
         font_large_size=args.font_large,

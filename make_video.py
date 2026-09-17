@@ -22,7 +22,7 @@ from tools.video_renderer import (
 )
 
 def preprocess_args(argv):
-    known_flags = {"--help", "-h", "--bg", "--overlay", "--audio", "--text", "--duration", "--output", "--font_size", "--max_chars", "--overlay_height", "--no_logo", "--logo_period", "--tv_range", "--cover", "--cover_title", "--cover_author", "--cover_output", "--cover_color", "--rebuild_template"}
+    known_flags = {"--help", "-h", "--bg", "--overlay", "--audio", "--text", "--duration", "--output", "--font_size", "--max_chars", "--overlay_height", "--no_logo", "--logo_period", "--tv_range", "--cover", "--cover_title", "--cover_author", "--cover_output", "--cover_color", "--cover_aspect", "--rebuild_template"}
     new_argv = []
     skip = False
     for i in range(len(argv)):
@@ -61,6 +61,7 @@ def main():
     parser.add_argument("--cover_author", default="--查理芒格", help="Cover author attribution")
     parser.add_argument("--cover_output", default="cover.png", help="Cover output path (default: cover.png)")
     parser.add_argument("--cover_color", action="store_true", help="Keep cover portrait in original color")
+    parser.add_argument("--cover_aspect", default="4:3", help='Cover canvas aspect ratio like "4:3" or "16:9" (default: "4:3")')
     parser.add_argument("--rebuild_template", action="store_true", help="Force rebuild background template")
     args = parser.parse_args()
 
@@ -200,6 +201,7 @@ def main():
             author=args.cover_author,
             portrait_path=args.overlay,
             output_path=args.cover_output,
+            aspect=args.cover_aspect,
             grayscale_portrait=not args.cover_color
         )
         print(f"  Cover Image  : {cover_path}")
