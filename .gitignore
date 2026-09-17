@@ -1,0 +1,57 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts and temporary frames
+build/
+dist/
+*.log
+
+# Media - Video
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+
+# Media - Audio
+*.mp3
+*.wav
+*.aac
+*.m4a
+*.flac
+
+# Media - Images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.bmp
+*.ico
+*.tiff
+
+# Text and Document files
+*.txt
+*.doc
+*.docx
+*.pdf
+*.csv
+*.tsv
+*.srt
+*.ass
+
+# Keep README and gitignore
+!README.md
+!.gitignore
